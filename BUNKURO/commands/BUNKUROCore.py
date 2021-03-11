@@ -5,6 +5,7 @@
 import adsk.core
 import adsk.fusion
 
+import time
 from ..apper import apper
 from .. import config
 from .ktkCmdInputHelper import TextBoxCommandInputHelper, BoolValueCommandInputHelper
@@ -41,13 +42,16 @@ class BUNKUROCore(apper.Fusion360CommandBase):
         pass
 
     def on_execute(self, command, inputs, args, input_values):
+        stime = time.time()
         global _FOLDERNAME, _save, _comb
         BUNKUROFactry.createCloneOccurrences(
             _FOLDERNAME, _comb.obj.value, _save.obj.value)
 
         _save.updateValue()
         _comb.updateValue()
-        adsk.core.Application.get().userInterface.messageBox('終了')
+        
+        adsk.core.Application.get().userInterface.messageBox(
+            f'終了\n%.2fs' % (time.time() - stime))
 
     def on_create(self, command, inputs):
         command.isPositionDependent = True

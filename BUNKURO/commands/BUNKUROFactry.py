@@ -104,7 +104,11 @@ class BUNKUROFactry:
 
             # -occ-
             occ :adsk.fusion.Occurrence
-            for occ in root.occurrences:
+            for occ, light in occLights:
+
+                if not light:
+                    continue
+
                 dumpMsg(f'-- {occ.name} start -- ')
 
                 # light on
@@ -196,7 +200,7 @@ class BUNKUROFactry:
 
         # root bodies
         rootLights = [(b, b.isLightBulbOn) for b in root.bRepBodies]
-        occLights = [(o, o.isLightBulbOn) for o in root.allOccurrences]
+        occLights = [(o, o.isLightBulbOn) for o in root.occurrences]
         
 
         return rootLights, occLights
