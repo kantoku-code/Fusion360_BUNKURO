@@ -69,11 +69,15 @@ class BUNKUROFactry:
 
             # DataFolder
             dataFolder :adsk.core.DataFolder = None
+            fileNames = [] #データフォルダー内のファイル名リスト
             if save:
                 dataFolder = fact._getDataFolder(actDoc, folderName)
                 if not dataFolder:
                     dumpMsg(f'!! dataFolder  Failure')
                     return
+                
+                # データファイル名リスト作成
+                fileNames = fact._getDateFileNameList(dataFolder)
 
             # light data
             rootLights, occLights = fact._getLightBulbOnMap(root)
@@ -95,7 +99,8 @@ class BUNKUROFactry:
                 newDoc = fact._initCloneBodies(bodies, combine, cloneName)
                 vp.fit()
                 if dataFolder:
-                    fact._saveDoc(newDoc, dataFolder, cloneName)
+                    newName = fact._saveDoc(newDoc, dataFolder, cloneName, fileNames)
+                    fileNames.append(newName)
 
             # light off
             fact._changeLights(rootLights, False)
@@ -125,12 +130,11 @@ class BUNKUROFactry:
                     newDoc = fact._initCloneBodies(bodies, combine, cloneName)
                     vp.fit()
                     if dataFolder:
-                        fact._saveDoc(newDoc, dataFolder, cloneName)
+                        newName = fact._saveDoc(newDoc, dataFolder, cloneName, fileNames)
+                        fileNames.append(newName)
 
                 # light off
                 occ.isLightBulbOn = False
-
-                # adsk.doEvents()
 
                 dumpMsg(f'-- {occ.name} finish -- ')
 
@@ -148,6 +152,15 @@ class BUNKUROFactry:
 
 
     # -- support function --
+
+    # 名前の重複を避ける為の名前取得
+    @staticmethod
+    def _getDateFileNameList(
+        folder :adsk.core.DataFolder) -> list:
+
+        fileNames = [f.name for f in folder.dataFiles]
+        return fileNames
+
     @staticmethod
     def _getDataFolder(
         doc :adsk.fusion.FusionDocument,
@@ -260,31 +273,30 @@ class BUNKUROFactry:
     def _saveDoc(
         saveDoc :adsk.fusion.FusionDocument,
         folder :adsk.core.DataFolder,
-        fileName :str) -> str:
+        fileName :str,
+        fileNames :list) -> str:
 
         # 名前の重複を避ける為の名前取得
         def getUniqueName(
-            folder :adsk.core.DataFolder,
+            fileNames :list,
             fileName :str) -> str:
 
             fileName = re.sub(r'[\\|/|:|?|.|"|<|>|\|]', '-', fileName)
 
-            fileNames = [f.name for f in folder.dataFiles]
             if not fileName in fileNames:
                 return fileName
 
             counter = 1
             tmpName = ''
             while True:
-                tmpName = fileName + str(counter)
+                tmpName = fileName + '_' + str(counter)
 
                 if not tmpName in fileNames:
-                    return fileName
+                    return tmpName
                 
                 counter +=1
 
-
-        unique = getUniqueName(folder, fileName)
+        unique = getUniqueName(fileNames, fileName)
         dumpMsg(f'-> clone doc name:{unique}')
 
         res = saveDoc.saveAs(unique, folder, 'Created with add-ins', '')

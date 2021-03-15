@@ -3,8 +3,10 @@
     "type": "addin",
     "id": "1aee3627-10c2-4e98-ae33-f5a0e87008db",
     "author": "kantoku",
-    "description": "コンポーネント毎に分割してクローン作るよ!",
-    "version": "0.0.2",
+    "description": {
+		"":	"コンポーネント毎に分割してクローン作るよ!"
+	},
+    "version": "0.0.3",
     "runOnStartup": false,
     "supportedOS": "windows|mac",
     "editEnabled": true
