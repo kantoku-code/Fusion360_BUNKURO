@@ -10,14 +10,13 @@ import re
 
 _app = adsk.core.Application.cast(None)
 _ui = adsk.core.UserInterface.cast(None)
+_cancelFG = False
 
 def run(context):
     try:
         global _app, _ui
         _app = adsk.core.Application.get()
         _ui = _app.userInterface
-        des :adsk.fusion.Design = _app.activeProduct
-        root :adsk.fusion.Component = des.rootComponent
 
         BUNKUROFactry.createCloneOccurrences('CloneCompDoc',False,False)
 
@@ -47,6 +46,18 @@ class BUNKUROFactry:
         folderName :str,
         combine: bool = True,
         save :bool = True):
+
+        def updeteProgress(
+            prog :adsk.core.ProgressDialog,
+            msg :str):
+
+            prog.progressValue += 1
+            prog.message = f'Processing {msg} ....'
+            adsk.doEvents()
+            if progress.wasCancelled:
+                global _cancelFG
+                _cancelFG = True
+                return
 
         rootLights = []
         occLights = []
@@ -85,6 +96,17 @@ class BUNKUROFactry:
             # -root-
             dumpMsg(f'- root start - ')
 
+            # progress
+            ui :adsk.core.UserInterface = app.userInterface
+            progress :adsk.core.ProgressDialog = ui.createProgressDialog()
+            progress.isCancelButtonShown = True
+            progress.show('-- BUNKURO --', '', 0, len(occLights) + 1)
+            updeteProgress(progress, 'Root Component')
+            global _cancelFG
+            if _cancelFG:
+                _cancelFG = not _cancelFG
+                return
+
             # light off occ
             fact._changeLights(occLights, False)
 
@@ -113,6 +135,12 @@ class BUNKUROFactry:
 
                 if not light:
                     continue
+
+                updeteProgress(progress, occ.name)
+                # global _cancelFG
+                if _cancelFG:
+                    _cancelFG = not _cancelFG
+                    return
 
                 dumpMsg(f'-- {occ.name} start -- ')
 
