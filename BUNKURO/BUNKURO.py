@@ -10,6 +10,7 @@ try:
     from .apper import apper
 
     from .commands.BUNKUROCore import BUNKUROCore
+    from .commands.BodiesCounterCore import BodiesCounterCore
 
     # Create our addin definition object
     my_addin = apper.FusionApp(config.app_name, config.company_name, False)
@@ -29,6 +30,22 @@ try:
             'create_feature': False,
         }
     )
+
+    my_addin.add_command(
+        '部品数',
+        BodiesCounterCore,
+        {
+            'cmd_description': '表示されているボディ数を集計し表示、CSV出力します。',
+            'cmd_id': 'bodiesCounter',
+            'workspace': 'FusionSolidEnvironment',
+            'toolbar_panel_id': 'AssemblePanel',
+            'cmd_resources': 'BodiesCounterFactry/cmd',
+            'command_visible': True,
+            'command_promoted': False,
+            'create_feature': False,
+        }
+    )
+
 
 except:
     app = adsk.core.Application.get()

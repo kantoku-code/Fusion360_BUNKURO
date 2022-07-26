@@ -5,8 +5,9 @@
 import adsk.core
 import adsk.fusion
 import traceback
-# import time
+import time
 import re
+import pathlib
 
 _app = adsk.core.Application.cast(None)
 _ui = adsk.core.UserInterface.cast(None)
@@ -178,6 +179,213 @@ class BUNKUROFactry:
             except:
                 pass
 
+
+    @staticmethod
+    def createImportOccurrences(
+        folderName :str,
+        combine: bool = True,
+        save :bool = True):
+
+        def updeteProgress(
+            prog :adsk.core.ProgressDialog,
+            msg :str):
+
+            prog.progressValue += 1
+            prog.message = f'Processing {msg} ....'
+            adsk.doEvents()
+            if progress.wasCancelled:
+                global _cancelFG
+                _cancelFG = True
+                return
+
+        rootLights = []
+        occLights = []
+        try:
+            # Preparation
+            app :adsk.core.Application = adsk.core.Application.get()
+            des = adsk.fusion.Design.cast(app.activeProduct)
+            root :adsk.fusion.Component = des.rootComponent
+            vp :adsk.core.Viewport = app.activeViewport
+
+            fact = BUNKUROFactry
+
+            # --start--
+            actDoc :adsk.fusion.FusionDocument = app.activeDocument
+            dumpMsg(f'--- {actDoc.name} start --- ')
+
+            # show body check
+            if len(fact._getShowBodyList(root)) < 1:
+                return
+
+            # DataFolder
+            dataFolder :adsk.core.DataFolder = None
+            fileNames = [] #データフォルダー内のファイル名リスト
+            if save:
+                dataFolder = fact._getDataFolder(actDoc, folderName)
+                if not dataFolder:
+                    dumpMsg(f'!! dataFolder  Failure')
+                    return
+                
+                # データファイル名リスト作成
+                fileNames = fact._getDateFileNameList(dataFolder)
+
+            # light data
+            rootLights, occLights = fact._getLightBulbOnMap(root)
+
+            # --newDoc
+            newBaseDoc = fact._initCloneBodies([], False, 'hoge')
+
+            # -root-
+            dumpMsg(f'- root start - ')
+
+            # progress
+            ui :adsk.core.UserInterface = app.userInterface
+            progress :adsk.core.ProgressDialog = ui.createProgressDialog()
+            progress.isCancelButtonShown = True
+            progress.show('-- BUNKURO --', '', 0, len(occLights) + 1)
+            updeteProgress(progress, 'Root Component')
+            global _cancelFG
+            if _cancelFG:
+                _cancelFG = not _cancelFG
+                return
+
+            # light off occ
+            fact._changeLights(occLights, False)
+
+            # doc name
+            cloneName = actDoc.name + '_root'
+
+            # get show bodies
+            bodies = fact._getShowBodyList(root)
+
+            # clone bodies
+            if len(bodies) > 0:
+                newDoc = fact._initCloneBodies(bodies, combine, cloneName)
+                vp.fit()
+                if dataFolder:
+                    newName = fact._saveDoc(newDoc, dataFolder, cloneName, fileNames)
+                    fileNames.append(newName)
+
+            # light off
+            fact._changeLights(rootLights, False)
+
+            dumpMsg(f'-- root finish -- ')
+
+            # -occ-
+            occ :adsk.fusion.Occurrence
+            for occ, light in occLights:
+
+                if not light:
+                    continue
+
+                updeteProgress(progress, occ.name)
+                # global _cancelFG
+                if _cancelFG:
+                    _cancelFG = not _cancelFG
+                    return
+
+                dumpMsg(f'-- {occ.name} start -- ')
+
+                # light on
+                occ.isLightBulbOn = True
+
+                # doc name
+                cloneName = f'{actDoc.name}_{occ.name}'
+
+                # get show bodies
+                bodies = fact._getShowBodyList(root)
+
+                # clone bodies
+                if len(bodies) > 0:
+                    newDoc = fact._initCloneBodies(bodies, combine, cloneName)
+                    vp.fit()
+                    # if dataFolder:
+                    #     newName = fact._saveDoc(newDoc, dataFolder, cloneName, fileNames)
+                    #     fileNames.append(newName)
+                    # --test
+                    expPath = fact._exportDoc(newDoc, cloneName)
+                    # newBaseDoc.activate()
+                    newDoc.close(False)
+                    time.sleep(0.5)
+                    fact._importComp(newBaseDoc, expPath)
+
+                # light off
+                occ.isLightBulbOn = False
+
+                dumpMsg(f'-- {occ.name} finish -- ')
+
+            dumpMsg(f'--- {actDoc.name} finish --- ')
+            # actDoc.activate()
+
+        except:
+            dumpMsg('Failed:\n{}'.format(traceback.format_exc()))
+        finally:
+            try:
+               BUNKUROFactry._changeLights(rootLights, False, True)
+               BUNKUROFactry._changeLights(occLights, False, True)
+            except:
+                pass
+
+    # --test
+    @staticmethod
+    def _importComp(
+        targetDoc :adsk.fusion.FusionDocument,
+        path):
+
+        # import f3d
+        # while True:
+        #     if path.is_file():
+        #         break
+        #     time.sleep(0.1)
+
+        # time.sleep(0.1)
+        # targetDoc.activate()
+        # time.sleep(0.1)
+        dumpMsg(f'{str(path)}:{path.is_file()}')
+
+        app :adsk.core.Application = adsk.core.Application.get()
+        app.executeTextCommand(f'Fusion.ImportComponent {str(path)}')
+        app.executeTextCommand(u'NuCommands.CommitCmd')
+        pass
+
+    @staticmethod
+    def _exportDoc(
+        saveDoc :adsk.fusion.FusionDocument,
+        fileName :str):
+
+        # 名前の重複を避ける為の名前取得
+        def getUniquePathName(
+            folder,
+            fileName :str):
+
+            suffix = '.f3d'
+            fileName = re.sub(r'[\\|/|:|?|.|"|<|>|\|]', '-', fileName)
+            
+            path = folder / (fileName + suffix)
+
+            if not path.is_file():
+                return path
+
+            counter = 1
+            while True:
+                path = folder / (fileName + '_' + str(counter) + suffix)
+                if not path.is_file():
+                    return path
+
+                counter +=1
+
+        folder = pathlib.Path(__file__).resolve().parent
+        expPath = getUniquePathName(folder, fileName)
+        dumpMsg(f'-> clone doc path:{str(expPath)}')
+
+        expMgr :adsk.fusion.ExportManager = saveDoc.design.exportManager
+        expOpt = expMgr.createFusionArchiveExportOptions(str(expPath))
+        expMgr.execute(expOpt)
+        # res = saveDoc.saveAs(unique, folder, 'Created with add-ins', '')
+        # if not res:
+        #     dumpMsg('!! document saveed Failure')
+        
+        return expPath
 
     # -- support function --
 

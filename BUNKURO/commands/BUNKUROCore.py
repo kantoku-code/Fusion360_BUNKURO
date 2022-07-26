@@ -44,7 +44,10 @@ class BUNKUROCore(apper.Fusion360CommandBase):
     def on_execute(self, command, inputs, args, input_values):
         stime = time.time()
         global _FOLDERNAME, _save, _comb
-        BUNKUROFactry.createCloneOccurrences(
+        # BUNKUROFactry.createCloneOccurrences(
+        #     _FOLDERNAME, _comb.obj.value, _save.obj.value)
+
+        BUNKUROFactry.createImportOccurrences(
             _FOLDERNAME, _comb.obj.value, _save.obj.value)
 
         _save.updateValue()
