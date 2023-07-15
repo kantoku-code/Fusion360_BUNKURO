@@ -8,6 +8,7 @@ import traceback
 import time
 import re
 import pathlib
+import os
 
 _app = adsk.core.Application.cast(None)
 _ui = adsk.core.UserInterface.cast(None)
@@ -260,6 +261,7 @@ class BUNKUROFactry:
 
             # clone bodies
             if len(bodies) > 0:
+            # if True:
                 newDoc = fact._initCloneBodies(bodies, combine, cloneName)
                 vp.fit()
                 if dataFolder:
@@ -299,15 +301,16 @@ class BUNKUROFactry:
                 if len(bodies) > 0:
                     newDoc = fact._initCloneBodies(bodies, combine, cloneName)
                     vp.fit()
-                    # if dataFolder:
-                    #     newName = fact._saveDoc(newDoc, dataFolder, cloneName, fileNames)
-                    #     fileNames.append(newName)
+                    if dataFolder:
+                        newName = fact._saveDoc(newDoc, dataFolder, cloneName, fileNames)
+                        fileNames.append(newName)
                     # --test
                     expPath = fact._exportDoc(newDoc, cloneName)
                     # newBaseDoc.activate()
                     newDoc.close(False)
                     time.sleep(0.5)
                     fact._importComp(newBaseDoc, expPath)
+                    os.remove(expPath)
 
                 # light off
                 occ.isLightBulbOn = False
@@ -344,7 +347,7 @@ class BUNKUROFactry:
         dumpMsg(f'{str(path)}:{path.is_file()}')
 
         app :adsk.core.Application = adsk.core.Application.get()
-        app.executeTextCommand(f'Fusion.ImportComponent {str(path)}')
+        app.executeTextCommand(f'Fusion.ImportComponent "{str(path)}"')
         app.executeTextCommand(u'NuCommands.CommitCmd')
         pass
 
